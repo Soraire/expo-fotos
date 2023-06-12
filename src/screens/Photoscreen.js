@@ -1,28 +1,59 @@
-import React from 'react';
-import { View, Button } from 'react-native';
-import { RNCamera } from 'react-native-camera';
+import React, { useState, useEffect } from 'react';
+import { View, Button, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
 
 const PhotoScreen = () => {
-  const takePhoto = async (camera) => {
-    if (camera) {
-      const options = { quality: 0.5, base64: true };
-      const data = await camera.takePictureAsync(options);
-      console.log(data.uri); // You can use this URI to display the image or send it to the backend
-      // Send the photo to the backend using axios or any other HTTP library
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permission denied!');
+      }
+    })();
+  }, []);
+
+  const takePhoto = async () => {
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.cancelled) {
+      setSelectedImage(result.uri);
+    }
+  };
+
+  const uploadImage = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('photo', {
+        uri: selectedImage,
+        type: 'image/jpg', // adjust the type according to your image file format
+        name: 'photo.jpg', // adjust the name as desired
+      });
+
+      const response = await axios.post('YOUR_BACKEND_URL', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      console.log('Image uploaded successfully!');
+      console.log(response.data);
+    } catch (error) {
+      console.error('Error uploading image:', error);
     }
   };
 
   return (
     <View style={{ flex: 1 }}>
-      <RNCamera
-        style={{ flex: 1 }}
-        type={RNCamera.Constants.Type.back}
-        captureAudio={false}
-      />
-      <Button
-        title="Take Photo"
-        onPress={() => takePhoto()}
-      />
+      {selectedImage && <Image source={{ uri: selectedImage }} style={{ flex: 1 }} />}
+      <Button title="Take Photo" onPress={takePhoto} />
+      <Button title="Upload Image" onPress={uploadImage} disabled={!selectedImage} />
     </View>
   );
 };
